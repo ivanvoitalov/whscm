@@ -1,2 +1,2 @@
-# whscm
-Code to generate maximum-entropy weighted networks with power-law degree and strength distributions.
+# Weighted hypersoft configuration model (WHSCM)
+This repository contains the code to generate weighted networks with prescribed power-law degree distributions and tunable super-linear scaling between nodes' strengths and degrees.
