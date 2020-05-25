@@ -222,30 +222,61 @@ def main():
     else:
         output_coords_file_path = "NONE"
 
+    # check operating system
+    os_type = sys.platform
+    if "linux" in os_type:
+        binary_extension = ".out"
+    elif "win32" in os_type or "cygwin" in os_type:
+        binary_extension = ".exe"
+    elif "darwin" in os_type:
+        binary_extension = ".out"
+    else:
+        print "This operating system is not supported, exiting."
+        sys.exit(2)
+
     # check if the folder exists and if the binary is in the folder
     python_script_dirname = os.path.dirname(os.path.realpath(__file__))
     parent_dirname = os.path.abspath(os.path.join(python_script_dirname, os.pardir))
-    bin_abspath = os.path.abspath(parent_dirname+'/bin/weighted_edgelist_generator.out')
+    bin_abspath = os.path.abspath(parent_dirname+'/bin/weighted_edgelist_generator%s'%binary_extension)
+
     if os.path.exists(bin_abspath):
+
         # if compiled, run the C++ generator
         generator_args = tuple(map(str,[n, R, a, alpha1, alpha2, beta1, beta2, args.s, output_file_path, output_coords_file_path, args.n_threads, args.v]))
+        execution_list = [bin_abspath]
+        for argument in generator_args:
+            execution_list.append(argument)
         t1 = time.time()
-        subprocess.call([bin_abspath + ' %s %s %s %s %s %s %s %s %s %s %s %s' % generator_args], shell = True)
+        generation_process = subprocess.Popen(execution_list)
+        generation_process.wait()
         t2 = time.time()
     
     else:
         bin_dirname = os.path.abspath(parent_dirname+"/bin/")
         if not os.path.isdir(bin_dirname):
-            subprocess.call('mkdir %s' % bin_dirname, shell = True)
+            print 'Creating bin directory...'
+            os.mkdir(bin_dirname)
             
         # if not compiled, compile and run
-        print 'Compiling the C++ code...'
+        print 'Compiling C++ code...'
         cpp_abspath = os.path.abspath(parent_dirname+'/src/weighted_edgelist_generator.cpp')
-        bin_abspath = os.path.abspath(parent_dirname+'/bin/weighted_edgelist_generator.out')
+        bin_abspath = os.path.abspath(parent_dirname+'/bin/weighted_edgelist_generator%s'%binary_extension)
+        compilation_process = subprocess.Popen(['g++', cpp_abspath, '-o', bin_abspath, '-std=c++11', '-fopenmp', '-O3'])
+        compilation_process.wait()
+        if os.path.exists(bin_abspath):
+            print 'C++ code compiled, generating the network...'
+        else:
+            print 'C++ code did not compile, exiting.'
+            sys.exit(2)
+
         generator_args = tuple(map(str,[n, R, a, alpha1, alpha2, beta1, beta2, args.s, output_file_path, output_coords_file_path, args.n_threads, args.v]))
-        subprocess.call(['g++ %s -o %s -std=c++11 -fopenmp -O3' % (cpp_abspath, bin_abspath)], shell = True)
+        execution_list = [bin_abspath]
+        for argument in generator_args:
+            execution_list.append(argument)
+
         t1 = time.time()
-        subprocess.call([bin_abspath + ' %s %s %s %s %s %s %s %s %s %s %s %s' % generator_args], shell = True)
+        generation_process = subprocess.Popen(execution_list)
+        generation_process.wait()
         t2 = time.time()
 
     if args.v == 1:
