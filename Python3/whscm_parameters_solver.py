@@ -442,7 +442,8 @@ def get_avek(n, R, a, alpha1, alpha2, beta1, beta2):
 
 def get_solution_approx(n, kbar_target, sigma0_target,
                         gamma_target, eta_target,
-                        verbose = 0):
+                        max_repetitions = 1000, verbose = 0,
+                        internal_call = False):
     """Function to compute the solutions for the (R, a)
        parameters of the WHSCM using the approximated
        versions of expected degrees and strengths
@@ -467,9 +468,15 @@ def get_solution_approx(n, kbar_target, sigma0_target,
             a_guess (float, optional): The initial guess for the
                                        a parameter solution. Ignored
                                        if eta = 1.0.
-            lam0 (float, optional): The lambda0 constant with respect
-                                    to which the sigma0 equation is
-                                    solved.
+            max_repetitions (int, optional): The maximum number of
+                                             restarts of the approximate
+                                             solver if the solution accuracy
+                                             is not achieved.
+            verbose (int, optional): The verbosity level flag (0 or 1).
+            internal_call (bool, optional): The flag indicating if the function
+                                           is called within itself (used to
+                                           suppress printing for eta = 1
+                                           case)
 
         Returns:
             R (float): The approximate solution for the R parameter.
@@ -482,7 +489,7 @@ def get_solution_approx(n, kbar_target, sigma0_target,
         beta2 = alpha2 - 1. + (eta_target*(alpha2 - 1.))/(gamma_target - 1.)
 
         R_guess, a_guess = get_solution_approx(n, kbar_target, sigma0_target,
-                                               gamma_target, 1.0)
+                                               gamma_target, 1.0, internal_call = 1)
         if verbose == 1:
             print("Initial guess (from eta = 1):", R_guess, a_guess)
         if R_guess == None:
@@ -490,6 +497,8 @@ def get_solution_approx(n, kbar_target, sigma0_target,
         if a_guess == None:
             a_guess = 1.1
 
+        # this function gets a lambda value that
+        # corresponds to the kbar(lam) = target_value
         def get_lam0_kbar(x, target_value):
             def f(lam):
                 kbar_lam = get_kbar_lam_approx(lam,n,x[0],x[1],alpha1,alpha2,beta1,beta2)
@@ -500,10 +509,19 @@ def get_solution_approx(n, kbar_target, sigma0_target,
             sol = optimize.fsolve(f, 1.1)
             return sol
 
-        def func(x):
-            if (x[0] < 1e-16) or (np.isnan(x[0])) or (x[1] < 1e-16) or (np.isnan(x[1])):
-                if verbose == 1:
-                    print("Current R = %.8f, current a = %.8f, current residue = inf." % (x[0], x[1]))
+        # this variable stores number of calls to the fsolve
+        # and prints out every 10 calls if the mode is verbose
+        solver_progress = {'tot_eval': 0}
+
+        # this function is called by the solver
+        def func(x, solver_progress):
+            num_evaluations = solver_progress['tot_eval']
+            printing_step = 10
+
+            if (x[0] < 1e-32) or (np.isnan(x[0])) or (x[1] < 1e-32) or (np.isnan(x[1])):
+                if verbose == 1 and num_evaluations %  printing_step == 0:
+                    print("Current R = %.12f, current a = %.12f, current residue = inf." % (x[0], x[1]))
+                solver_progress['tot_eval'] += 1
                 return [np.inf, 0]
             
             # find lambda that correspond to approximately 1.1 * kbar value of
@@ -511,65 +529,88 @@ def get_solution_approx(n, kbar_target, sigma0_target,
             lam_test = get_lam0_kbar(x, 1.1*kbar_target)
 
             if lam_test <= 1.0 or lam_test == None:
-                if verbose == 1:
-                    print("Current R = %.8f, current a = %.8f, current residue = inf." % (x[0], x[1]))
+                if verbose == 1 and num_evaluations %  printing_step == 0:
+                    print("Current R = %.12f, current a = %.12f, current residue = inf." % (x[0], x[1]))
+                solver_progress['tot_eval'] += 1
                 return [np.inf, 0]
             else:
                 kbar_estimate = get_avek_approx(n,x[0],x[1],alpha1,alpha2,beta1,beta2)
                 sbar_lam_estimate = get_sbar_lam_approx(lam_test,n,x[0],x[1],alpha1,alpha2,beta1,beta2)
                 kbar_lam_estimate = get_kbar_lam_approx(lam_test,n,x[0],x[1],alpha1,alpha2,beta1,beta2)
-                if (kbar_estimate == None) or (kbar_lam_estimate == None) or (sbar_lam_estimate == None):
-                    if verbose == 1:
-                        print("Current R = %.8f, current a = %.8f, current residue = inf." % (x[0], x[1]))
+                if (kbar_estimate == None or kbar_estimate <= 10e-32) or (kbar_lam_estimate == None or kbar_lam_estimate <= 10e-32) or (sbar_lam_estimate == None):
+                    if verbose == 1 and num_evaluations %  printing_step == 0:
+                        print("Current R = %.12f, current a = %.12f, current residue = inf." % (x[0], x[1]))
+                    solver_progress['tot_eval'] += 1
                     return [np.inf, 0]
                 else:
                     r = ((kbar_estimate - kbar_target)/kbar_target)**2 + ((sbar_lam_estimate / (kbar_lam_estimate)**eta_target - sigma0_target )/sigma0_target)**2
-                    if verbose == 1:
-                        print("Current R = %.8f, current a = %.8f, current residue = %.12f" % (x[0], x[1], r))
+                    if verbose == 1 and num_evaluations %  printing_step == 0:
+                        print("Current R = %.12f, current a = %.12f, current residue = %.12f" % (x[0], x[1], r))
+                    solver_progress['tot_eval'] += 1
                     return [r, 0]
+
         
-        print("Starting the approximate solver...")
-        sol = optimize.fsolve(func, x0 = [R_guess, a_guess], xtol = 1e-04)
-        R, a = sol
-        lam_test = get_lam0_kbar([R,a], 1.1*kbar_target)
-        if lam_test <= 1.0 or lam_test == None:
-            current_r = np.inf
-        else:
-            kbar_estimate = get_avek_approx(n,R,a,alpha1,alpha2,beta1,beta2)
-            sbar_lam_estimate = get_sbar_lam_approx(lam_test,n,R,a,alpha1,alpha2,beta1,beta2)
-            kbar_lam_estimate = get_kbar_lam_approx(lam_test,n,R,a,alpha1,alpha2,beta1,beta2)
-            if (kbar_estimate == None) or (kbar_lam_estimate == None) or (sbar_lam_estimate == None):
-                current_r = np.inf
-            else:
-                current_r = ((kbar_estimate - kbar_target)/kbar_target)**2 + ((sbar_lam_estimate / (kbar_lam_estimate)**eta_target - sigma0_target )/sigma0_target)**2
+        if verbose == 1:
+            print("Starting the approximate solver with the initial guess: R = %.12f, a = %.12f" % (R_guess, a_guess))
+
+        # current residue of the solution
+        current_r = np.inf
+        current_repetition = 0
+        
+        
+        while (current_r > 0.001) and (current_repetition < max_repetitions):
             
-        while current_r > 0.001:
-            R, a = np.random.uniform(0.9,1.1)*R, np.random.uniform(0.9,1.1)*a
-            if verbose == 1:
-                print("Residue remained too large, restarting with perturbed initial guess: R = %.8f, a = %.8f" % (R, a))
-            sol = optimize.fsolve(func, x0 = [R, a], xtol = 1e-04)
-            R, a = sol
-            lam_test = get_lam0_kbar([R,a], 1.1*kbar_target)
-            if lam_test <= 1.0 or lam_test == None:
+            # perturb the solution of previous round
+            if current_repetition >= 1:
+                # this perturbation seems to work well for the input parameters we tested
+                # change if the solver is stuck
+                R_guess, a_guess = np.random.uniform(0.9, 1.1)*R_guess, np.random.uniform(0.5, 1.5)*a_guess
+                if verbose == 1:
+                    print("WARNING: Residue remained too large from the last round of solver.")
+                    print("Restarting the solver with the perturbed initial guess: R = %.12f, a = %.12f" % (R_guess, a_guess))
+
+
+            sol = optimize.fsolve(func, x0 = [R_guess, a_guess], xtol = 1e-04, args = (solver_progress))
+            R_guess, a_guess = sol
+            lam0 = get_lam0_kbar([R_guess, a_guess], 1.1*kbar_target)
+            
+            # check if lam0 is within the appropriate boundaries
+            if lam0 <= 1.0 or lam0 == None:
                 current_r = np.inf
+                if verbose == 1:
+                    print("Solver round %d: R = %.12f, a = %.12f, current residue = inf." % (current_repetition, R_guess, a_guess))
             else:
-                kbar_estimate = get_avek_approx(n,R,a,alpha1,alpha2,beta1,beta2)
-                sbar_lam_estimate = get_sbar_lam_approx(lam_test,n,R,a,alpha1,alpha2,beta1,beta2)
-                kbar_lam_estimate = get_kbar_lam_approx(lam_test,n,R,a,alpha1,alpha2,beta1,beta2)
-                if (kbar_estimate == None) or (kbar_lam_estimate == None) or (sbar_lam_estimate == None):
+                kbar_estimate = get_avek_approx(n,R_guess,a_guess,alpha1,alpha2,beta1,beta2)
+                sbar_lam_estimate = get_sbar_lam_approx(lam0,n,R_guess,a_guess,alpha1,alpha2,beta1,beta2)
+                kbar_lam_estimate = get_kbar_lam_approx(lam0,n,R_guess,a_guess,alpha1,alpha2,beta1,beta2)
+                if (kbar_estimate == None) or (kbar_lam_estimate == None or kbar_lam_estimate <= 10e-32) or (sbar_lam_estimate == None):
                     current_r = np.inf
+                    if verbose == 1:
+                        print("Solver round %d: R = %.12f, a = %.12f, current residue = inf." % (current_repetition, R_guess, a_guess))
                 else:
                     current_r = ((kbar_estimate - kbar_target)/kbar_target)**2 + ((sbar_lam_estimate / (kbar_lam_estimate)**eta_target - sigma0_target )/sigma0_target)**2
-        
+                    if verbose == 1:
+                        print("Solver round %d: R = %.12f, a = %.12f, current residue = %.12f." % (current_repetition, R_guess, a_guess, current_r))
+            current_repetition += 1
+
         # print out approximate solver estimates for the average degree
         # and sigma0 with the (R, a) solution found
-        result_kbar = get_avek_approx(n,R,a,alpha1,alpha2,beta1,beta2)
-        result_sigma0 = get_sbar_lam_approx(lam_test,n,R,a,alpha1,alpha2,beta1,beta2) / (get_kbar_lam_approx(lam_test,n,R,a,alpha1,alpha2,beta1,beta2))**(eta_target)
-        print("==========")
-        print("Approximate solver solution: R = %.12f, a = %.12f" % (R, a))
-        print("Estimated average degree with the current choice of (R, a), approximate solver:", float(result_kbar))
-        print("Estimated sigma0 with the current choice of (R, a), approximate solver:", float(result_sigma0))
-        print("==========")
+        if current_r < 0.001:
+            R, a = R_guess, a_guess
+            lam_test = get_lam0_kbar([R,a], 1.1*kbar_target)
+
+            result_kbar = get_avek_approx(n,R,a,alpha1,alpha2,beta1,beta2)
+            result_sigma0 = get_sbar_lam_approx(lam_test,n,R,a,alpha1,alpha2,beta1,beta2) / (get_kbar_lam_approx(lam_test,n,R,a,alpha1,alpha2,beta1,beta2))**(eta_target)
+            print("==========")
+            print("Approximate solver solution: R = %.12f, a = %.12f" % (R, a))
+            print("Estimated average degree with the current choice of (R, a), approximate solver:", float(result_kbar))
+            print("Estimated sigma0 with the current choice of (R, a), approximate solver:", float(result_sigma0))
+            print("==========")
+
+        else:
+            print("ERROR: Approximate solver failed to find a solution.")
+            R, a = None, None
+        
 
     elif eta_target == 1.0:
         a = 1. / (2. * sigma0_target)
@@ -638,23 +679,24 @@ def get_solution_approx(n, kbar_target, sigma0_target,
 
         result_kbar = kbar_func(n, gamma_target, R, a)
         result_sigma0 = 1./(2.*a)
-        print("==========")
-        print("Approximate solver solution: R = %.12f, a = %.12f" % (R, a))
-        print("Estimated average degree with the current choice of (R, a), approximate solver:", float(result_kbar))
-        print("Estimated sigma0 with the current choice of (R, a), approximate solver:", float(result_sigma0))
-        print("==========")
+
+        if not internal_call:
+            print("==========")
+            print("Approximate solver solution: R = %.12f, a = %.12f" % (R, a))
+            print("Estimated average degree with the current choice of (R, a), approximate solver:", float(result_kbar))
+            print("Estimated sigma0 with the current choice of (R, a), approximate solver:", float(result_sigma0))
+            print("==========")
         
     else:
-        if verbose == 1:
-            print("ERROR (get_solution_approx): "+\
-                  "eta_target parameter has to be greater or equal to 1.")
+        print("ERROR (get_solution_approx): "+\
+              "eta_target parameter has to be greater or equal to 1.")
         R, a = None, None
 
     return R, a
 
 def get_solution(n, kbar_target, sigma0_target,
                  gamma_target, eta_target,
-                 verbose = 0):
+                 verbose = 0, max_repetitions = 1000):
     """Function to compute the solutions for the (R, a)
        parameters of the WHSCM. For the eta > 1 case,
        the approximate solutions are obtained first,
@@ -670,14 +712,12 @@ def get_solution(n, kbar_target, sigma0_target,
                                   power-law exponent (> 2).
             eta_target (float): The target strength-degree scaling
                                 exponent (>= 1).
-            R_guess (float, optional): The initial guess for the
-                                       R parameter solution.
-            a_guess (float, optional): The initial guess for the
-                                       a parameter solution. Ignored
-                                       if eta = 1.0.
-            lam0 (float, optional): The lambda0 constant with respect
-                                    to which the sigma0 equation is
-                                    solved.
+            verbose (int, optional): The verbosity level flag (0 or 1).
+            max_repetitions (int, optional): The maximum number of
+                                             restarts of the approximate
+                                             solver if the solution accuracy
+                                             is not achieved.
+
 
         Returns:
             R (float): The exact solution for the R parameter.
@@ -687,13 +727,19 @@ def get_solution(n, kbar_target, sigma0_target,
 
         R_init, a_init = get_solution_approx(n, kbar_target, sigma0_target,
                                              gamma_target, eta_target,
-                                             verbose = verbose)
+                                             verbose = verbose,
+                                             max_repetitions = max_repetitions)
+        if R_init == None or a_init == None:
+            print("ERROR: Skipping the exact solver as the approximate solver failed.")
+            return None, None
 
         alpha1 = 1. + eta_target*(gamma_target - 1.)
         beta1 = (gamma_target - (gamma_target - 2.)/gamma_target)*(eta_target - 1.)
         alpha2 = 1. + ((alpha1 - 1.) / (1. + beta1)) * (1. + (gamma_target - 2.)*(1. - 1./eta_target))
         beta2 = alpha2 - 1. + (eta_target*(alpha2 - 1.))/(gamma_target - 1.)
 
+        # this function gets a lambda value that
+        # corresponds to the kbar(lam) = target_value
         def get_lam0_kbar(x, target_value):
             def f(lam):
                 kbar_lam = expected_k_lam(lam,n,x[0],x[1],alpha1,alpha2,beta1,beta2)
@@ -704,10 +750,19 @@ def get_solution(n, kbar_target, sigma0_target,
             sol = optimize.fsolve(f, 1.1)
             return sol
 
+        # this variable stores number of calls to the fsolve
+        # and prints out every 10 calls if the mode is verbose
+        solver_progress = {'tot_eval': 0}
+
+        # this function is called by the exact solver
         def func(x):
-            if (x[0] < 1e-16) or (np.isnan(x[0])) or (x[1] < 1e-16) or (np.isnan(x[1])):
-                if verbose == 1:
-                    print("Current R = %.8f, current a = %.8f, current residue = inf." % (x[0], x[1]))
+            num_evaluations = solver_progress['tot_eval']
+            printing_step = 10
+
+            if (x[0] < 1e-32) or (np.isnan(x[0])) or (x[1] < 1e-32) or (np.isnan(x[1])):
+                if verbose == 1 and num_evaluations %  printing_step == 0:
+                    print("Current R = %.12f, current a = %.12f, current residue = inf." % (x[0], x[1]))
+                solver_progress['tot_eval'] += 1
                 return [np.inf, 0]
             
             # find lambda that correspond to approximately 1.1 * kbar value of
@@ -715,24 +770,27 @@ def get_solution(n, kbar_target, sigma0_target,
             lam_test = get_lam0_kbar(x, 1.1*kbar_target)
 
             if lam_test <= 1.0 or lam_test == None:
-                if verbose == 1:
-                    print("Current R = %.8f, current a = %.8f, current residue = inf." % (x[0], x[1]))
+                if verbose == 1 and num_evaluations %  printing_step == 0:
+                    print("Current R = %.12f, current a = %.12f, current residue = inf." % (x[0], x[1]))
+                solver_progress['tot_eval'] += 1
                 return [np.inf, 0]
             else:
                 kbar_estimate = get_avek(n,x[0],x[1],alpha1,alpha2,beta1,beta2)
                 sbar_lam_estimate = expected_s_lam(lam_test,n,x[0],x[1],alpha1,alpha2,beta1,beta2)
                 kbar_lam_estimate = expected_k_lam(lam_test,n,x[0],x[1],alpha1,alpha2,beta1,beta2)
-                if (kbar_estimate == None) or (kbar_lam_estimate == None) or (sbar_lam_estimate == None):
-                    if verbose == 1:
-                        print("Current R = %.8f, current a = %.8f, current residue = inf." % (x[0], x[1]))
+                if (kbar_estimate == None or kbar_estimate <= 10e-32) or (kbar_lam_estimate == None or kbar_lam_estimate <= 10e-32) or (sbar_lam_estimate == None):
+                    if verbose == 1 and num_evaluations %  printing_step == 0:
+                        print("Current R = %.12f, current a = %.12f, current residue = inf." % (x[0], x[1]))
+                    solver_progress['tot_eval'] += 1
                     return [np.inf, 0]
                 else:
                     r = ((kbar_estimate - kbar_target)/kbar_target)**2 + ((sbar_lam_estimate / (kbar_lam_estimate)**eta_target - sigma0_target )/sigma0_target)**2
-                    if verbose == 1:
-                        print("Current R = %.8f, current a = %.8f, current residue = %.12f" % (x[0], x[1], r))
+                    if verbose == 1 and num_evaluations %  printing_step == 0:
+                        print("Current R = %.12f, current a = %.12f, current residue = %.12f" % (x[0], x[1], r))
+                    solver_progress['tot_eval'] += 1
                     return [r, 0]
 
-        
+        print("*****")
         print("Starting the exact solver...")
         sol = optimize.fsolve(func, x0 = [R_init, a_init], xtol = 1e-04)
         R, a = sol
@@ -743,17 +801,21 @@ def get_solution(n, kbar_target, sigma0_target,
         current_r = ((kbar_estimate - kbar_target)/kbar_target)**2 + ((sbar_lam_estimate / (kbar_lam_estimate)**eta_target - sigma0_target )/sigma0_target)**2
         
         # we do not perform restarting of the solver with perturbed initial guess here as the
-        # precise solver is too slow, the approximate solver should obtain close enough solution alredy
+        # precise solver is too slow, and the approximate solver should have obtained close enough already
         
-        # print out exact solver estimates for the average degree
-        # and sigma0 with the (R, a) solution found
-        result_kbar = get_avek(n,R,a,alpha1,alpha2,beta1,beta2)
-        result_sigma0 = expected_s_lam(lam_test,n,R,a,alpha1,alpha2,beta1,beta2) / (expected_k_lam(lam_test,n,R,a,alpha1,alpha2,beta1,beta2))**(eta_target)
-        print("==========")
-        print("Exact solver solution: R = %.12f, a = %.12f" % (R, a))
-        print("Estimated average degree with the current choice of (R, a):", result_kbar)
-        print("Estimated sigma0 with the current choice of (R, a):", result_sigma0)
-        print("==========")
+        if current_r < 0.01:
+            # print out exact solver estimates for the average degree
+            # and sigma0 with the (R, a) solution found
+            result_kbar = get_avek(n,R,a,alpha1,alpha2,beta1,beta2)
+            result_sigma0 = expected_s_lam(lam_test,n,R,a,alpha1,alpha2,beta1,beta2) / (expected_k_lam(lam_test,n,R,a,alpha1,alpha2,beta1,beta2))**(eta_target)
+            print("==========")
+            print("Exact solver solution: R = %.12f, a = %.12f" % (R, a))
+            print("Estimated average degree with the current choice of (R, a):", result_kbar)
+            print("Estimated sigma0 with the current choice of (R, a):", result_sigma0)
+            print("==========")
+        else:
+            print("ERROR: exact solver failed to find a solution with residue < 0.01.")
+            R, a = None, None
 
     elif eta_target == 1.0:
         # the exact numerical solution is obtained in the

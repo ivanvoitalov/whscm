@@ -1,7 +1,11 @@
 # Weighted Hypersoft Configuration Model (WHSCM)
 
 ## Summary
-This repository contains the code to generate networks from the _Weighted Hypersoft Configuration Model (WHSCM)_ with the prescribed power-law degree distribution and tunable super-linear scaling between nodes' strengths and degrees.
+This repository contains the code to generate networks from the _Weighted Hypersoft Configuration Model (WHSCM)_ with the prescribed power-law degree distribution and tunable super-linear scaling between nodes' strengths and degrees. If you use this code in your research, please kindly cite this repo and/or the original paper [LINK TO BE ADDED SOON].
+
+The directory _Paper_ contains some materials used in the paper, and is not necessary for running the code. 
+
+In case you notice any bugs or have difficulties with running the code, please feel free to contact the authors via GitHub or email. 
 
 ## Dependencies
 
@@ -22,7 +26,9 @@ No installation is required. You may directly launch the Python scripts from the
 
 ## Simple Usage Example
 
-Suppose you are given a real weighted network and would like to generate the null model networks from the WHSCM that resemble its basic structural properties and are maximally random. Suppose the size of the network is ![$n = 10^4$](https://render.githubusercontent.com/render/math?math=%24n%20%3D%2010%5E4%24), the power-law degree distribution has the exponent ![$\gamma = 2.5$](https://render.githubusercontent.com/render/math?math=%24%5Cgamma%20%3D%202.5%24) and the average degree is ![$\bar{k} = 10$](https://render.githubusercontent.com/render/math?math=%24%5Cbar%7Bk%7D%20%3D%2010%24). Additionally, as observed from many realistic weighted networks, suppose you observe that nodes' strength scale super-linearly with nodes' degrees, ![$\bar{s}(k) \sim k^{\eta}$](https://render.githubusercontent.com/render/math?math=%24%5Cbar%7Bs%7D(k)%20%5Csim%20k%5E%7B%5Ceta%7D%24), where ![$\eta = 1.5$](https://render.githubusercontent.com/render/math?math=%24%5Ceta%20%3D%201.5%24) is the exponent describing this scaling. Moreover, you observe the "baseline" of the strength-degree scaling curve ![$\bar{s}(k)$](https://render.githubusercontent.com/render/math?math=%24%5Cbar%7Bs%7D(k)%24) such that the expected strength as a function of degree rescaled by the degree approaches some given constant ![$\sigma_0 = 0.1$](https://render.githubusercontent.com/render/math?math=%24%5Csigma_0%20%3D%200.1%24): ![$\bar{s}(k) / k^{\eta} \rightarrow \sigma_0$](https://render.githubusercontent.com/render/math?math=%24%5Cbar%7Bs%7D(k)%20%2F%20k%5E%7B%5Ceta%7D%20%5Crightarrow%20%5Csigma_0%24). Given these parameters that one may measure directly from the network, you may generate a WHSCM null model network using the following command:
+Suppose you are given a real weighted network where you observe that network degrees and strengths are distributed as power-laws. Suppose the size of the network is ![$n = 10^4$](https://render.githubusercontent.com/render/math?math=%24n%20%3D%2010%5E4%24), the power-law degree distribution has the exponent ![$\gamma = 2.5$](https://render.githubusercontent.com/render/math?math=%24%5Cgamma%20%3D%202.5%24) and the average degree is ![$\bar{k} = 10$](https://render.githubusercontent.com/render/math?math=%24%5Cbar%7Bk%7D%20%3D%2010%24). Additionally, as observed in many real weighted networks, suppose you observe that nodes' strength scale super-linearly with nodes' degrees, ![$\bar{s}(k) \sim k^{\eta}$](https://render.githubusercontent.com/render/math?math=%24%5Cbar%7Bs%7D(k)%20%5Csim%20k%5E%7B%5Ceta%7D%24), where ![$\eta = 1.5$](https://render.githubusercontent.com/render/math?math=%24%5Ceta%20%3D%201.5%24) is the exponent describing this scaling. Moreover, you observe the "baseline" of the strength-degree scaling curve ![$\bar{s}(k)$](https://render.githubusercontent.com/render/math?math=%24%5Cbar%7Bs%7D(k)%24) such that the expected strength as a function of degree rescaled by the degree approaches to some given constant ![$\sigma_0 = 0.1$](https://render.githubusercontent.com/render/math?math=%24%5Csigma_0%20%3D%200.1%24) such that ![$\bar{s}(k) / k^{\eta} \rightarrow \sigma_0$](https://render.githubusercontent.com/render/math?math=%24%5Cbar%7Bs%7D(k)%20%2F%20k%5E%7B%5Ceta%7D%20%5Crightarrow%20%5Csigma_0%24).
+
+Now you would like to generate the null model weighted networks that resemble these basic structural properties and are maximally random. To do this, you need to generate graphs from the WHSCM ensemble, and this can be done using the following command:
 ```
 python Python2/generate_weighted_network.py -n 10000 -g 2.5 -e 1.5 -o output_edgelist.net -k 10.0 --sigma0 0.1
 ```
@@ -31,6 +37,8 @@ This will create a weighted edge list "output_edgelist.net" in the root director
 ```
 node_i node_j w_ij
 ```
+
+## Additional Notes
 
 If you would like to also save the latent parameters ("coordinates") ![$\lambda, \mu$](https://render.githubusercontent.com/render/math?math=%24%5Clambda%2C%20%5Cmu%24) for each node that are used to generate this WHSCM network instance, you may provide an output path for the coordinates file using the `--params_output` flag. The terminal command would then look as follows:
 ```
@@ -41,6 +49,8 @@ The coordinates file has the following format output format per line:
 ```
 node_label lambda mu
 ```
+
+Note that the current code package should generate networks with the power-law degree and strength distributions for a limited range of input parameters due to approximations used, as explained in the paper [LINK TO BE ADDED SOON]. We observed that it behaves well for the mild values of strength-degree non-linearity ![$\eta \leq 2$](https://render.githubusercontent.com/render/math?math=\eta%20\leq%202) and ![$\gamma > 2$](https://render.githubusercontent.com/render/math?math=\gamma%20%3E%202).
 
 ## Additional Options
 
@@ -70,6 +80,8 @@ Here we briefly describe these flags and their functionality.
 
 `--solver`. This parameter may take the values of 0 and 1. If it is set to 0, then the approximate solver is used to find the ![$R, a$](https://render.githubusercontent.com/render/math?math=%24R%2C%20a%24) parameters of the WHSCM given the ![$\bar{k}, \sigma_0$](https://render.githubusercontent.com/render/math?math=%24%5Cbar%7Bk%7D%2C%20%5Csigma_0%24) parameters. If it is set to 1, then an exact solver is launched on top of the results of the approximate solver to find a more precise estimate of ![$R, a$](https://render.githubusercontent.com/render/math?math=%24R%2C%20a%24). The approximate solver is significantly faster that the exact one, and finds relatively accurate estimates of the ![$R, a$](https://render.githubusercontent.com/render/math?math=%24R%2C%20a%24) parameters.
 
-`-s`. This parameter sets the random seed. Note that it should not exceed the maximum value of the C++ uint32 type minus the number of parallel threads, as each parallel thread is seeded with its unique random number generator. 
+`-s`. This parameter sets the random seed. Note that it should not exceed the maximum value of the C++ uint32 type minus the number of parallel threads, as each parallel thread is seeded with its unique random number generator. Moreover, because of that, to get the same results for a given seed, make sure you use the same number of parallel threads.
 
 `-v`. This parameter equals either 0 or 1. If it is set to 0, the verbosity of the code is set to minimum. If it is set to 1, the verbosity of the code is set to maximum.
+
+`--max_repetitions`. This parameter defines the maximum number of restarts for the approximate solver. If the approximate solver fails to find a good solution for the ![$R, a$](https://render.githubusercontent.com/render/math?math=%24R%2C%20a%24) parameters of the WHSCM and reaches this number, the solver stops.

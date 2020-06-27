@@ -113,7 +113,7 @@ int generate_weighted_edgelist(const uint32_t &n, const double &R, const double 
         std::uniform_real_distribution<double> thread_uniform_dist(0.0, 1.0);
         //thread-local vector of vectors storing generated links
         std::vector< std::tuple< uint32_t, uint32_t, double > > thread_links;
-        #pragma omp for schedule(dynamic)
+        #pragma omp for schedule(static)
             for (uint32_t i = 0; i < n; i++){
                 double lam_i = coordinates_map[i][0];
                 double mu_i = coordinates_map[i][1];
@@ -224,7 +224,7 @@ int generate_weighted_edgelist_eta1(const uint32_t &n, const double &R, const do
         std::uniform_real_distribution<double> thread_uniform_dist(0.0, 1.0);
         //thread-local vector of vectors storing generated links
         std::vector< std::tuple< uint32_t, uint32_t, double > > thread_links;
-        #pragma omp for schedule(dynamic)
+        #pragma omp for schedule(static)
             for (uint32_t i = 0; i < n; i++){
                 double lam_i = coordinates_map[i][0];
                 for (uint32_t j = i + 1; j < n; j++){

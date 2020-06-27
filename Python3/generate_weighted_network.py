@@ -76,12 +76,18 @@ def main():
                         help = '''Flag to control the output verbosity.
                                   Set to 1 if detailed output is needed.
                                   (default = 0)''')
+    parser.add_argument('--max_repetitions', type = int, default = 1000,
+                        help = '''Maximum number of restarts for approximate
+                                  solver if it fails to find (R, a) solution.
+                                  (default = 1000)''')
 
 
 
     args = parser.parse_args()
 
     # check arguments for consistency
+    if args.max_repetitions <= 0:
+        parser.error('max_repetitions parameter should be greater than 0.')
     if args.solver != 0 and args.solver != 1:
         parser.error('''The solver parameter should be either
                      0 (fast and approximate) or 
@@ -157,6 +163,8 @@ def main():
     eta_target = args.eta
     n = args.num_nodes
 
+    max_repetitions = args.max_repetitions
+
     if eta_target == 1.0:
         alpha1 = gamma_target
         alpha2 = gamma_target
@@ -189,20 +197,23 @@ def main():
         if args.solver == 0:
             if args.v == 1:
                 R, a = ps.get_solution_approx(n, args.k, args.sigma0, gamma_target, eta_target,
-                                              verbose = 1)
+                                              verbose = 1, max_repetitions = max_repetitions)
             else:
                 R, a = ps.get_solution_approx(n, args.k, args.sigma0, gamma_target, eta_target,
-                                              verbose = 0)
+                                              verbose = 0, max_repetitions = max_repetitions)
         elif args.solver == 1:
             if args.v == 1:
                 R, a = ps.get_solution(n, args.k, args.sigma0, gamma_target, eta_target,
-                                       verbose = 1)
+                                       verbose = 1, max_repetitions = max_repetitions)
             else:
                 R, a = ps.get_solution(n, args.k, args.sigma0, gamma_target, eta_target,
-                                       verbose = 0)
-        if args.v == 1:
+                                       verbose = 0, max_repetitions = max_repetitions)
+        if args.v == 1 and R != None and a != None:
             print("Solutions found: R = %.12f, a = %.12f." % (R, a))
 
+    if a == None or R == None:
+        print("ERROR: some of (R, a) parameters is None, network is not generated.")
+        return None
     
     print("******************************")
     print("Generating a weighted network using the following parameters:")
@@ -282,7 +293,7 @@ def main():
     if args.v == 1:
         print("Time used for edge list generation: %.8f seconds." % (t2 - t1))
         
-
+    return 1
 
 if __name__ == '__main__':
     
