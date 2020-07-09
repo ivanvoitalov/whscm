@@ -1,9 +1,9 @@
 # Weighted Hypersoft Configuration Model (WHSCM)
 
 ## Summary
-This repository contains the code to generate networks from the _Weighted Hypersoft Configuration Model (WHSCM)_ with the prescribed power-law degree distribution and tunable super-linear scaling between nodes' strengths and degrees. If you use this code in your research, please kindly cite this repo and/or the original paper [LINK TO BE ADDED SOON].
+This repository contains the code to generate networks from the _Weighted Hypersoft Configuration Model (WHSCM)_ with the prescribed power-law degree distribution and tunable super-linear scaling between nodes' strengths and degrees. If you use this code in your research, please kindly cite this repo and/or the [original paper](https://arxiv.org/abs/2007.00124).
 
-The directory _Paper_ contains some materials used in the paper, and is not necessary for running the code. 
+The directory _Paper_ contains some materials used in the paper, and is not necessary for running the code. This directory contains a Mathematica script used to visualize some functions considered in the paper, and the MLE-inferred Lagrange multipliers ![$x$](https://render.githubusercontent.com/render/math?math=x), ![$y$](https://render.githubusercontent.com/render/math?math=y) for synthetic degree/strength sequences. Each degree/strength sequence is saved to the `k_s_sequence.dat` file, and the Lagrange multipliers corresponding to each degree/strength sequence element are saved to the `coordinates.dat` file. Each line in the `k_s_sequence.dat` file has two entries ![$k_i,s_i$](https://render.githubusercontent.com/render/math?math=k_i,s_i) corresponding to the sampled degree and strength of node ![$i$](https://render.githubusercontent.com/render/math?math=i). Each line in the `coordinates.dat` file has the corresponding Lagrange multipliers ![$x_i,y_i$](https://render.githubusercontent.com/render/math?math=x_i,y_i). The Lagrange multipliers are transformed so that they are supported on the unit interval. To obtain the ![$\nu$](https://render.githubusercontent.com/render/math?math=\nu), ![$\mu$](https://render.githubusercontent.com/render/math?math=\mu) Lagrange multipliers as in the paper, one has to transform ![$x$](https://render.githubusercontent.com/render/math?math=x), ![$y$](https://render.githubusercontent.com/render/math?math=y) as ![$\nu = \log{(1/x - 1)}$](https://render.githubusercontent.com/render/math?math=\nu%20=%20\log{(1/x%20-%201)}) and ![$\mu = \log{(1/y)}$](https://render.githubusercontent.com/render/math?math=\mu%20=%20\log{(1/y)}).
 
 In case you notice any bugs or have difficulties with running the code, please feel free to contact the authors via GitHub or email. 
 
@@ -50,7 +50,7 @@ The coordinates file has the following format output format per line:
 node_label lambda mu
 ```
 
-Note that the current code package should generate networks with the power-law degree and strength distributions for a limited range of input parameters due to approximations used, as explained in the paper [LINK TO BE ADDED SOON]. We observed that it behaves well for the mild values of strength-degree non-linearity ![$\eta \leq 2$](https://render.githubusercontent.com/render/math?math=\eta%20\leq%202) and ![$\gamma > 2$](https://render.githubusercontent.com/render/math?math=\gamma%20%3E%202).
+Note that the current code package should generate networks with the power-law degree and strength distributions for a limited range of input parameters due to approximations used, as explained in the [paper](https://arxiv.org/abs/2007.00124). We observed that it behaves well for the mild values of strength-degree non-linearity ![$\eta \leq 2$](https://render.githubusercontent.com/render/math?math=\eta%20\leq%202) and ![$\gamma > 2$](https://render.githubusercontent.com/render/math?math=\gamma%20%3E%202).
 
 ## Additional Options
 
